@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Biblioteca</title>
+    <link rel="stylesheet" href="static/css/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Sistema de Biblioteca</h1>
+        <nav>
+            <ul>
+                <li><a href="#" id="livrosLink">Livros</a></li>
+                <li><a href="#" id="usuariosLink">Usuários</a></li>
+                <li><a href="#" id="emprestimosLink">Empréstimos</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main>
+        <section id="livrosSection" class="section">
+            <h2>Gerenciamento de Livros</h2>
+            <form id="livroForm">
+                <input type="text" id="titulo" placeholder="Título do Livro" required>
+                <input type="text" id="autor" placeholder="Autor" required>
+                <input type="text" id="isbn" placeholder="ISBN" required>
+                <button type="submit">Adicionar Livro</button>
+            </form>
+            <div id="livrosList"></div>
+        </section>
+
+        <section id="usuariosSection" class="section hidden">
+            <h2>Gerenciamento de Usuários</h2>
+            <form id="usuarioForm">
+                <input type="text" id="nome" placeholder="Nome do Usuário" required>
+                <input type="email" id="email" placeholder="Email" required>
+                <button type="submit">Adicionar Usuário</button>
+            </form>
+            <div id="usuariosList"></div>
+        </section>
+
+        <section id="emprestimosSection" class="section hidden">
+            <h2>Gerenciamento de Empréstimos</h2>
+            <form id="emprestimoForm">
+                <select id="livroSelect" required>
+                    <option value="">Selecione um livro</option>
+                </select>
+                <select id="usuarioSelect" required>
+                    <option value="">Selecione um usuário</option>
+                </select>
+                <button type="submit">Registrar Empréstimo</button>
+            </form>
+            <div id="emprestimosList"></div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 Sistema de Biblioteca</p>
+    </footer>
+
+    <script src="static/js/scripts.js"></script>
+</body>
+</html>
