@@ -1,64 +1,109 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistema de Biblioteca</title>
-    <link rel="stylesheet" href="static/css/styles.css">
+    <title>Biblioteca Escolar</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Roboto:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <header>
-        <h1>Sistema de Biblioteca</h1>
-        <nav>
-            <ul>
-                <li><a href="#" id="livrosLink">Livros</a></li>
-                <li><a href="#" id="usuariosLink">Usuários</a></li>
-                <li><a href="#" id="emprestimosLink">Empréstimos</a></li>
-            </ul>
-        </nav>
+        <h1>Biblioteca Escolar</h1>
+        <input type="search" id="searchInput" placeholder="Buscar por título ou autor" aria-label="Buscar livros">
     </header>
-
-    <main>
-        <section id="livrosSection" class="section">
-            <h2>Gerenciamento de Livros</h2>
-            <form id="livroForm">
-                <input type="text" id="titulo" placeholder="Título do Livro" required>
-                <input type="text" id="autor" placeholder="Autor" required>
-                <input type="text" id="isbn" placeholder="ISBN" required>
-                <button type="submit">Adicionar Livro</button>
+    <div style="display: flex; min-height: 100vh;">
+        <aside style="min-width: 220px; background: #fff; border-right: 1px solid #eee; padding: 2rem 1rem;">
+            <h2 style="color:#1E3A8A;">Filtros</h2>
+            <form id="filterForm" aria-label="Filtros de livros">
+                <label for="genero">Gênero:</label>
+                <select id="genero" name="genero">
+                    <option value="">Todos</option>
+                    <option value="Romance">Romance</option>
+                    <option value="Aventura">Aventura</option>
+                    <option value="Fantasia">Fantasia</option>
+                    <option value="Suspense">Suspense</option>
+                    <option value="Infantil">Infantil</option>
+                </select>
+                <label for="ano">Ano:</label>
+                <input type="number" id="ano" name="ano" min="1900" max="2025" placeholder="Ano">
+                <label for="status">Status:</label>
+                <select id="status" name="status">
+                    <option value="">Todos</option>
+                    <option value="disponível">Disponível</option>
+                    <option value="emprestado">Emprestado</option>
+                </select>
+                <button type="button" id="clearFilters">Limpar filtros</button>
             </form>
-            <div id="livrosList"></div>
-        </section>
+            <button type="button" id="novoLivroBtn" aria-label="Novo Livro" accesskey="n" style="margin-top:2rem;">+ Novo Livro</button>
+        </aside>
+        <main>
+            <section class="section">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <h2>Catálogo de Livros</h2>
+                    <div>
+                        <button id="exportCSV">Exportar CSV</button>
+                        <button id="exportJSON">Exportar JSON</button>
+                    </div>
+                </div>
+                <div id="livrosList" aria-live="polite">
+                    <!-- Cards de livros serão inseridos aqui via JS -->
+                </div>
+                <div id="pagination" style="margin-top:2rem; text-align:center;">
+                    <!-- Paginação será inserida aqui via JS -->
+                </div>
+            </section>
+        </main>
+    </div>
 
-        <section id="usuariosSection" class="section hidden">
-            <h2>Gerenciamento de Usuários</h2>
-            <form id="usuarioForm">
-                <input type="text" id="nome" placeholder="Nome do Usuário" required>
-                <input type="email" id="email" placeholder="Email" required>
-                <button type="submit">Adicionar Usuário</button>
+    <!-- Modal Novo Livro -->
+    <div id="modalNovoLivro" class="hidden" role="dialog" aria-modal="true" aria-labelledby="modalNovoLivroTitulo" tabindex="-1">
+        <div class="section" style="max-width:400px; margin:2rem auto;">
+            <h2 id="modalNovoLivroTitulo">Novo Livro</h2>
+            <form id="novoLivroForm">
+                <label for="titulo">Título*</label>
+                <input type="text" id="titulo" name="titulo" required minlength="3" maxlength="90">
+                <label for="autor">Autor*</label>
+                <input type="text" id="autor" name="autor" required>
+                <label for="anoLivro">Ano*</label>
+                <input type="number" id="anoLivro" name="anoLivro" required min="1900" max="2025">
+                <label for="generoLivro">Gênero</label>
+                <select id="generoLivro" name="generoLivro">
+                    <option value="">Selecione</option>
+                    <option value="Romance">Romance</option>
+                    <option value="Aventura">Aventura</option>
+                    <option value="Fantasia">Fantasia</option>
+                    <option value="Suspense">Suspense</option>
+                    <option value="Infantil">Infantil</option>
+                </select>
+                <label for="isbn">ISBN</label>
+                <input type="text" id="isbn" name="isbn">
+                <label for="statusLivro">Status*</label>
+                <select id="statusLivro" name="statusLivro" required>
+                    <option value="disponível">Disponível</option>
+                    <option value="emprestado">Emprestado</option>
+                </select>
+                <button type="submit">Salvar</button>
+                <button type="button" id="fecharModalNovoLivro">Cancelar</button>
             </form>
-            <div id="usuariosList"></div>
-        </section>
+        </div>
+    </div>
 
-        <section id="emprestimosSection" class="section hidden">
-            <h2>Gerenciamento de Empréstimos</h2>
+    <!-- Modal Empréstimo/Devolução -->
+    <div id="modalEmprestimo" class="hidden" role="dialog" aria-modal="true" aria-labelledby="modalEmprestimoTitulo" tabindex="-1">
+        <div class="section" style="max-width:400px; margin:2rem auto;">
+            <h2 id="modalEmprestimoTitulo">Empréstimo/Devolução</h2>
             <form id="emprestimoForm">
-                <select id="livroSelect" required>
-                    <option value="">Selecione um livro</option>
-                </select>
-                <select id="usuarioSelect" required>
-                    <option value="">Selecione um usuário</option>
-                </select>
-                <button type="submit">Registrar Empréstimo</button>
+                <input type="hidden" id="livroIdEmprestimo" name="livroIdEmprestimo">
+                <div id="emprestimoInfo"></div>
+                <button type="submit" id="confirmarEmprestimoBtn">Confirmar</button>
+                <button type="button" id="fecharModalEmprestimo">Cancelar</button>
             </form>
-            <div id="emprestimosList"></div>
-        </section>
-    </main>
+        </div>
+    </div>
 
     <footer>
-        <p>&copy; 2025 Sistema de Biblioteca</p>
+        &copy; 2025 Biblioteca Escolar
     </footer>
-
-    <script src="static/js/scripts.js"></script>
-</body>
-</html>
+    <script src="scripts.js"></script>
