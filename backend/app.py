@@ -2,14 +2,11 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
-from datetime import datetime
 import sqlite3
-import os
+from datetime import datetime
 
-# Criação do aplicativo FastAPI
 app = FastAPI(title="Sistema de Biblioteca API")
 
-# Configuração do CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,224 +15,159 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+DATABASE_FILE = "biblioteca.db"
+
 # Modelos Pydantic
 class LivroBase(BaseModel):
     titulo: str
     autor: str
-    isbn: str
+    ano: int
+    genero: Optional[str] = None
+    isbn: Optional[str] = None
+    status: str = "disponível"
+    data_emprestimo: Optional[str] = None
 
 class Livro(LivroBase):
     id: int
 
-class UsuarioBase(BaseModel):
-    nome: str
-    email: str
-
-class Usuario(UsuarioBase):
-    id: int
-
-class EmprestimoBase(BaseModel):
-    livro_id: int
-    usuario_id: int
-
-class Emprestimo(EmprestimoBase):
-    id: int
-    data_emprestimo: datetime
-    devolvido: bool = False
-
-# Configuração do banco de dados
-DATABASE_FILE = "biblioteca.db"
+# Funções de banco de dados
+def get_db():
+    conn = sqlite3.connect(DATABASE_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
 
 def init_db():
-    if not os.path.exists(DATABASE_FILE):
-        conn = sqlite3.connect(DATABASE_FILE)
-        c = conn.cursor()
-        
-        # Criar tabelas
-        c.execute('''
-            CREATE TABLE livros (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                titulo TEXT NOT NULL,
-                autor TEXT NOT NULL,
-                isbn TEXT NOT NULL UNIQUE
-            )
-        ''')
-        
-        c.execute('''
-            CREATE TABLE usuarios (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome TEXT NOT NULL,
-                email TEXT NOT NULL UNIQUE
-            )
-        ''')
-        
-        c.execute('''
-            CREATE TABLE emprestimos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                livro_id INTEGER,
-                usuario_id INTEGER,
-                data_emprestimo TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                devolvido BOOLEAN DEFAULT FALSE,
-                FOREIGN KEY (livro_id) REFERENCES livros (id),
-                FOREIGN KEY (usuario_id) REFERENCES usuarios (id)
-            )
-        ''')
-        
-        conn.commit()
-        conn.close()
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS livros (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            titulo TEXT NOT NULL UNIQUE,
+            autor TEXT NOT NULL,
+            ano INTEGER NOT NULL,
+            genero TEXT,
+            isbn TEXT,
+            status TEXT NOT NULL DEFAULT 'disponível',
+            data_emprestimo TEXT
+        )
+    """)
+    conn.commit()
+    conn.close()
 
-# Inicializar o banco de dados
 init_db()
 
 # Rotas da API
-@app.get("/api/livros", response_model=List[Livro])
-async def get_livros():
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    c.execute("SELECT * FROM livros")
-    livros = [{"id": row[0], "titulo": row[1], "autor": row[2], "isbn": row[3]} 
-              for row in c.fetchall()]
+
+@app.get("/livros", response_model=List[Livro])
+def listar_livros(search: Optional[str] = None, genero: Optional[str] = None, ano: Optional[int] = None, status: Optional[str] = None):
+    conn = get_db()
+    cursor = conn.cursor()
+    query = "SELECT * FROM livros WHERE 1=1"
+    params = []
+    if search:
+        query += " AND (titulo LIKE ? OR autor LIKE ?)"
+        params += [f"%{search}%", f"%{search}%"]
+    if genero:
+        query += " AND genero = ?"
+        params.append(genero)
+    if ano:
+        query += " AND ano = ?"
+        params.append(ano)
+    if status:
+        query += " AND status = ?"
+        params.append(status)
+    cursor.execute(query, params)
+    livros = [Livro(**dict(row)) for row in cursor.fetchall()]
     conn.close()
     return livros
 
-@app.post("/api/livros", response_model=Livro)
-async def create_livro(livro: LivroBase):
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
+@app.post("/livros", response_model=Livro)
+def criar_livro(livro: LivroBase):
+    if livro.ano < 1900 or livro.ano > datetime.now().year:
+        raise HTTPException(status_code=422, detail="Ano inválido.")
+    conn = get_db()
+    cursor = conn.cursor()
     try:
-        c.execute(
-            "INSERT INTO livros (titulo, autor, isbn) VALUES (?, ?, ?)",
-            (livro.titulo, livro.autor, livro.isbn)
-        )
-        livro_id = c.lastrowid
+        cursor.execute("""
+            INSERT INTO livros (titulo, autor, ano, genero, isbn, status, data_emprestimo)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (livro.titulo, livro.autor, livro.ano, livro.genero, livro.isbn, livro.status, livro.data_emprestimo))
         conn.commit()
+        livro_id = cursor.lastrowid
+        cursor.execute("SELECT * FROM livros WHERE id = ?", (livro_id,))
+        novo_livro = Livro(**dict(cursor.fetchone()))
     except sqlite3.IntegrityError:
         conn.close()
-        raise HTTPException(status_code=400, detail="ISBN já existe")
+        raise HTTPException(status_code=400, detail="Título já existe.")
     conn.close()
-    return {**livro.dict(), "id": livro_id}
+    return novo_livro
 
-@app.delete("/api/livros/{livro_id}")
-async def delete_livro(livro_id: int):
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    c.execute("DELETE FROM livros WHERE id = ?", (livro_id,))
-    if c.rowcount == 0:
+@app.put("/livros/{id}", response_model=Livro)
+def atualizar_livro(id: int, livro: LivroBase):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM livros WHERE id = ?", (id,))
+    if not cursor.fetchone():
         conn.close()
-        raise HTTPException(status_code=404, detail="Livro não encontrado")
+        raise HTTPException(status_code=404, detail="Livro não encontrado.")
+    cursor.execute("""
+        UPDATE livros SET titulo=?, autor=?, ano=?, genero=?, isbn=?, status=?, data_emprestimo=?
+        WHERE id=?
+    """, (livro.titulo, livro.autor, livro.ano, livro.genero, livro.isbn, livro.status, livro.data_emprestimo, id))
+    conn.commit()
+    cursor.execute("SELECT * FROM livros WHERE id = ?", (id,))
+    livro_atualizado = Livro(**dict(cursor.fetchone()))
+    conn.close()
+    return livro_atualizado
+
+@app.delete("/livros/{id}")
+def deletar_livro(id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM livros WHERE id = ?", (id,))
+    if not cursor.fetchone():
+        conn.close()
+        raise HTTPException(status_code=404, detail="Livro não encontrado.")
+    cursor.execute("DELETE FROM livros WHERE id = ?", (id,))
     conn.commit()
     conn.close()
-    return {"detail": "Livro excluído com sucesso"}
+    return {"detail": "Livro excluído com sucesso."}
 
-@app.get("/api/usuarios", response_model=List[Usuario])
-async def get_usuarios():
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    c.execute("SELECT * FROM usuarios")
-    usuarios = [{"id": row[0], "nome": row[1], "email": row[2]} 
-                for row in c.fetchall()]
-    conn.close()
-    return usuarios
-
-@app.post("/api/usuarios", response_model=Usuario)
-async def create_usuario(usuario: UsuarioBase):
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    try:
-        c.execute(
-            "INSERT INTO usuarios (nome, email) VALUES (?, ?)",
-            (usuario.nome, usuario.email)
-        )
-        usuario_id = c.lastrowid
-        conn.commit()
-    except sqlite3.IntegrityError:
+@app.post("/livros/{id}/emprestar", response_model=Livro)
+def emprestar_livro(id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM livros WHERE id = ?", (id,))
+    livro = cursor.fetchone()
+    if not livro:
         conn.close()
-        raise HTTPException(status_code=400, detail="Email já existe")
-    conn.close()
-    return {**usuario.dict(), "id": usuario_id}
-
-@app.delete("/api/usuarios/{usuario_id}")
-async def delete_usuario(usuario_id: int):
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    c.execute("DELETE FROM usuarios WHERE id = ?", (usuario_id,))
-    if c.rowcount == 0:
+        raise HTTPException(status_code=404, detail="Livro não encontrado.")
+    if livro["status"] == "emprestado":
         conn.close()
-        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        raise HTTPException(status_code=400, detail="Livro já está emprestado.")
+    data_emprestimo = datetime.utcnow().isoformat()
+    cursor.execute("UPDATE livros SET status='emprestado', data_emprestimo=? WHERE id=?", (data_emprestimo, id))
     conn.commit()
+    cursor.execute("SELECT * FROM livros WHERE id = ?", (id,))
+    livro_atualizado = Livro(**dict(cursor.fetchone()))
     conn.close()
-    return {"detail": "Usuário excluído com sucesso"}
+    return livro_atualizado
 
-@app.get("/api/emprestimos", response_model=List[dict])
-async def get_emprestimos():
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    c.execute("""
-        SELECT e.*, l.titulo, l.autor, u.nome, u.email
-        FROM emprestimos e
-        JOIN livros l ON e.livro_id = l.id
-        JOIN usuarios u ON e.usuario_id = u.id
-        WHERE e.devolvido = 0
-    """)
-    emprestimos = []
-    for row in c.fetchall():
-        emprestimo = {
-            "id": row[0],
-            "livro_id": row[1],
-            "usuario_id": row[2],
-            "data_emprestimo": row[3],
-            "devolvido": bool(row[4]),
-            "livro": {"titulo": row[5], "autor": row[6]},
-            "usuario": {"nome": row[7], "email": row[8]}
-        }
-        emprestimos.append(emprestimo)
-    conn.close()
-    return emprestimos
-
-@app.post("/api/emprestimos", response_model=dict)
-async def create_emprestimo(emprestimo: EmprestimoBase):
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    
-    # Verificar se o livro está disponível
-    c.execute("""
-        SELECT COUNT(*) FROM emprestimos 
-        WHERE livro_id = ? AND devolvido = 0
-    """, (emprestimo.livro_id,))
-    
-    if c.fetchone()[0] > 0:
+@app.post("/livros/{id}/devolver", response_model=Livro)
+def devolver_livro(id: int):
+    conn = get_db()
+    cursor = conn.cursor()
+    cursor.execute("SELECT * FROM livros WHERE id = ?", (id,))
+    livro = cursor.fetchone()
+    if not livro:
         conn.close()
-        raise HTTPException(status_code=400, detail="Livro já está emprestado")
-    
-    try:
-        c.execute(
-            "INSERT INTO emprestimos (livro_id, usuario_id) VALUES (?, ?)",
-            (emprestimo.livro_id, emprestimo.usuario_id)
-        )
-        emprestimo_id = c.lastrowid
-        conn.commit()
-    except sqlite3.IntegrityError:
+        raise HTTPException(status_code=404, detail="Livro não encontrado.")
+    if livro["status"] == "disponível":
         conn.close()
-        raise HTTPException(status_code=400, detail="Erro ao criar empréstimo")
-    
-    conn.close()
-    return {**emprestimo.dict(), "id": emprestimo_id}
-
-@app.put("/api/emprestimos/{emprestimo_id}")
-async def update_emprestimo(emprestimo_id: int):
-    conn = sqlite3.connect(DATABASE_FILE)
-    c = conn.cursor()
-    c.execute(
-        "UPDATE emprestimos SET devolvido = 1 WHERE id = ?",
-        (emprestimo_id,)
-    )
-    if c.rowcount == 0:
-        conn.close()
-        raise HTTPException(status_code=404, detail="Empréstimo não encontrado")
+        raise HTTPException(status_code=400, detail="Livro já está disponível.")
+    cursor.execute("UPDATE livros SET status='disponível', data_emprestimo=NULL WHERE id=?", (id,))
     conn.commit()
+    cursor.execute("SELECT * FROM livros WHERE id = ?", (id,))
+    livro_atualizado = Livro(**dict(cursor.fetchone()))
     conn.close()
-    return {"detail": "Empréstimo atualizado com sucesso"}
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    return livro_atualizado
