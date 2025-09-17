@@ -1,0 +1,61 @@
+@base = http://127.0.0.1:8000
+@json = application/json
+
+### Health
+GET {{base}}/health
+
+### Lista (sem filtros)
+GET {{base}}/livros
+
+### Lista com filtros
+GET {{base}}/livros?search=romance&genero=Romance&ano=1899&status=disponível
+
+### Cria livro (válido)
+POST {{base}}/livros
+Content-Type: {{json}}
+
+{
+  "titulo": "Teste de Livro {{random 1000}}",
+  "autor": "Autor Teste",
+  "ano": 2001,
+  "genero": "Fantasia",
+  "isbn": "{{randomInt 1000000000000 9999999999999}}",
+  "status": "disponível"
+}
+
+### Atualiza livro (troca status)
+@id = 1
+PUT {{base}}/livros/{{id}}
+Content-Type: {{json}}
+
+{
+  "titulo": "1984",
+  "autor": "George Orwell",
+  "ano": 1949,
+  "genero": "Ficção",
+  "isbn": "9788535914849",
+  "status": "disponível",
+  "data_emprestimo": null
+}
+
+### Emprestar
+POST {{base}}/livros/{{id}}/emprestar
+
+### Devolver
+POST {{base}}/livros/{{id}}/devolver
+
+### Excluir livro
+DELETE {{base}}/livros/{{id}}
+
+### Validação de erro (ano inválido)
+POST {{base}}/livros
+Content-Type: {{json}}
+
+{
+  "titulo": "Ano Muito Antigo",
+  "autor": "Alguém",
+  "ano": 1500,
+  "genero": "História",
+  "isbn": "0000000000000",
+  "status": "disponível"
+}

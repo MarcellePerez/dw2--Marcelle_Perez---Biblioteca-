@@ -1,0 +1,30 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# Environments
+.env
+.env.*
+venv/
+.venv/
+
+# SQLite / Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Node / Frontend
+node_modules/
+dist/
+build/
+
+# Editor / OS
+.vscode/
+.DS_Store
+*.log
+
+# Coverage / Reports
+.coverage
+coverage*
