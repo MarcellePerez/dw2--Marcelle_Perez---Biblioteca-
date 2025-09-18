@@ -26,7 +26,7 @@ class LivroBase(BaseModel):
     isbn: Optional[str] = None
     status: str = "disponível"
     data_emprestimo: Optional[str] = None
-    capa_url: Optional[str] = None
+    # campo de capa removido da API
 
 class Livro(LivroBase):
     id: int
@@ -49,18 +49,10 @@ def init_db():
             genero TEXT,
             isbn TEXT,
             status TEXT NOT NULL DEFAULT 'disponível',
-            data_emprestimo TEXT,
-            capa_url TEXT
+        data_emprestimo TEXT
         )
     """)
-    # Migração leve: adiciona coluna capa_url se não existir
-    cursor.execute("PRAGMA table_info(livros)")
-    cols = [row[1] for row in cursor.fetchall()]
-    if 'capa_url' not in cols:
-        try:
-            cursor.execute("ALTER TABLE livros ADD COLUMN capa_url TEXT")
-        except Exception:
-            pass
+    # tabela pode possuir coluna antiga 'capa_url'; ignoramos
     conn.commit()
     conn.close()
 
@@ -72,11 +64,12 @@ init_db()
 def health():
     return {"status": "ok", "time": datetime.utcnow().isoformat()}
 
+
 @app.get("/livros", response_model=List[Livro])
 def listar_livros(search: Optional[str] = None, genero: Optional[str] = None, ano: Optional[int] = None, status: Optional[str] = None):
     conn = get_db()
     cursor = conn.cursor()
-    query = "SELECT * FROM livros WHERE 1=1"
+    query = "SELECT id, titulo, autor, ano, genero, isbn, status, data_emprestimo FROM livros WHERE 1=1"
     params = []
     if search:
         query += " AND (titulo LIKE ? OR autor LIKE ?)"
@@ -103,9 +96,9 @@ def criar_livro(livro: LivroBase):
     cursor = conn.cursor()
     try:
         cursor.execute("""
-            INSERT INTO livros (titulo, autor, ano, genero, isbn, status, data_emprestimo, capa_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (livro.titulo, livro.autor, livro.ano, livro.genero, livro.isbn, livro.status, livro.data_emprestimo, livro.capa_url))
+            INSERT INTO livros (titulo, autor, ano, genero, isbn, status, data_emprestimo)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (livro.titulo, livro.autor, livro.ano, livro.genero, livro.isbn, livro.status, livro.data_emprestimo))
         conn.commit()
         livro_id = cursor.lastrowid
         cursor.execute("SELECT * FROM livros WHERE id = ?", (livro_id,))
@@ -125,9 +118,9 @@ def atualizar_livro(id: int, livro: LivroBase):
         conn.close()
         raise HTTPException(status_code=404, detail="Livro não encontrado.")
     cursor.execute("""
-        UPDATE livros SET titulo=?, autor=?, ano=?, genero=?, isbn=?, status=?, data_emprestimo=?, capa_url=?
+        UPDATE livros SET titulo=?, autor=?, ano=?, genero=?, isbn=?, status=?, data_emprestimo=?
         WHERE id=?
-    """, (livro.titulo, livro.autor, livro.ano, livro.genero, livro.isbn, livro.status, livro.data_emprestimo, livro.capa_url, id))
+    """, (livro.titulo, livro.autor, livro.ano, livro.genero, livro.isbn, livro.status, livro.data_emprestimo, id))
     conn.commit()
     cursor.execute("SELECT * FROM livros WHERE id = ?", (id,))
     livro_atualizado = Livro(**dict(cursor.fetchone()))

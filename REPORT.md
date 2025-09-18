@@ -32,7 +32,7 @@ Fluxo:
 - Bônus: Atalhos acessíveis (Alt+N), foco visível, aria-* nos elementos principais
 
 ## Validações
-- Frontend: título obrigatório (3–90), ano 1900–atual, impedimento de título duplicado local.
+- Frontend: título obrigatório (3–90), ano 1900–atual, impedimento de título duplicado local, URL de capa opcional.
 - Backend: ano válido; impedimento de empréstimo quando status=emprestado; devolver só quando status!=disponível; título único (constraint + erro 400).
 
 ## Acessibilidade
@@ -62,6 +62,8 @@ python -m http.server 5500
 - Sem autenticação/usuários.
 - Falta paginação no backend (front faz fatia local).
 - Possível adicionar tema claro/escuro e testes automatizados.
+- Dependências legadas em requirements.txt (SQLAlchemy) não usadas.
+
 
 ## Prompts do Copilot (resumo)
 - “Gerar HTML com header, filtros e modais…"

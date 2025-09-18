@@ -23,7 +23,7 @@ Content-Type: {{json}}
   "status": "disponível"
 }
 
-### Atualiza livro (troca status)
+### Atualiza livro (troca status e capa)
 @id = 1
 PUT {{base}}/livros/{{id}}
 Content-Type: {{json}}

@@ -44,19 +44,10 @@ def init_table():
             genero TEXT,
             isbn TEXT,
             status TEXT NOT NULL DEFAULT 'disponível',
-            data_emprestimo TEXT,
-            capa_url TEXT
+            data_emprestimo TEXT
         )
         """
     )
-    # Migração leve para coluna capa_url
-    c.execute("PRAGMA table_info(livros)")
-    cols = [row[1] for row in c.fetchall()]
-    if 'capa_url' not in cols:
-        try:
-            c.execute("ALTER TABLE livros ADD COLUMN capa_url TEXT")
-        except Exception:
-            pass
     conn.commit()
     conn.close()
 
@@ -67,15 +58,12 @@ def seed():
     # Limpa tabela para idempotência do seed
     c.execute("DELETE FROM livros")
     for l in LIVROS:
-        capa = None
-        if l.get("isbn"):
-            capa = f"https://covers.openlibrary.org/b/isbn/{l['isbn']}-M.jpg"
         c.execute(
             """
-            INSERT OR IGNORE INTO livros (titulo, autor, ano, genero, isbn, status, data_emprestimo, capa_url)
-            VALUES (?, ?, ?, ?, ?, ?, NULL, ?)
+            INSERT OR IGNORE INTO livros (titulo, autor, ano, genero, isbn, status, data_emprestimo)
+            VALUES (?, ?, ?, ?, ?, ?, NULL)
             """,
-            (l["titulo"], l["autor"], l["ano"], l.get("genero"), l.get("isbn"), l.get("status", "disponível"), capa),
+            (l["titulo"], l["autor"], l["ano"], l.get("genero"), l.get("isbn"), l.get("status", "disponível")),
         )
     conn.commit()
     conn.close()

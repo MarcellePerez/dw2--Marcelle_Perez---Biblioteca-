@@ -51,7 +51,6 @@ function renderizarLivros() {
         let card = document.createElement('div');
         card.className = 'livro-card section';
         card.innerHTML = `
-            ${livro.capa_url ? `<img src="${livro.capa_url}" alt="Capa de ${livro.titulo}" style="width:100%;max-height:240px;object-fit:cover;border-radius:6px;margin-bottom:0.75rem;" onerror="this.style.display='none'">` : ''}
             <h3>${livro.titulo}</h3>
             <p><strong>Autor:</strong> ${livro.autor}</p>
             <p><strong>Ano:</strong> ${livro.ano}</p>
@@ -130,8 +129,7 @@ function salvarLivro(e) {
         ano: parseInt(form.anoLivro.value),
         genero: form.generoLivro.value,
         isbn: form.isbn.value,
-    status: form.statusLivro.value,
-    capa_url: form.capaUrl.value.trim() || null
+    status: form.statusLivro.value
     };
     if (livro.titulo.length < 3 || livro.titulo.length > 90) {
         alert('Título deve ter entre 3 e 90 caracteres.');
@@ -167,7 +165,6 @@ function editarLivro(id) {
     form.anoLivro.value = livro.ano;
     form.generoLivro.value = livro.genero;
     form.isbn.value = livro.isbn;
-    form.capaUrl.value = livro.capa_url || '';
     form.statusLivro.value = livro.status;
     form.onsubmit = function(e) {
         e.preventDefault();
@@ -176,7 +173,6 @@ function editarLivro(id) {
         livro.ano = parseInt(form.anoLivro.value);
         livro.genero = form.generoLivro.value;
         livro.isbn = form.isbn.value;
-        livro.capa_url = form.capaUrl.value.trim() || null;
         livro.status = form.statusLivro.value;
     fetch(`${API_BASE}/livros/${id}`, {
             method: 'PUT',
