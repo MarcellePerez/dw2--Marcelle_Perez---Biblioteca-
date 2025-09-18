@@ -4,6 +4,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 import sqlite3
 from datetime import datetime
+from pathlib import Path
 
 app = FastAPI(title="Sistema de Biblioteca API")
 
@@ -15,7 +16,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-DATABASE_FILE = "biblioteca.db"
+BASE_DIR = Path(__file__).resolve().parent
+DATABASE_FILE = str((BASE_DIR / "biblioteca.db").resolve())
 
 # Modelos Pydantic
 class LivroBase(BaseModel):

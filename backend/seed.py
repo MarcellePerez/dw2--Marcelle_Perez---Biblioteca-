@@ -4,9 +4,11 @@ Cria a tabela se não existir e insere ~20 livros plausíveis.
 """
 
 import sqlite3
+from pathlib import Path
 from datetime import datetime
 
-DATABASE_FILE = "biblioteca.db"
+BASE_DIR = Path(__file__).resolve().parent
+DATABASE_FILE = str((BASE_DIR / "biblioteca.db").resolve())
 
 LIVROS = [
     {"titulo": "Dom Casmurro", "autor": "Machado de Assis", "ano": 1899, "genero": "Romance", "isbn": "9788535914660", "status": "disponível"},
